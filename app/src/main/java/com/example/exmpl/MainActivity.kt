@@ -1,85 +1,53 @@
 package com.example.exmpl
 
-import android.content.Intent
 import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
-import android.widget.Button
-import android.widget.ImageButton
-import android.widget.SeekBar
-import android.widget.VideoView
+import android.widget.SearchView
+import android.widget.TextView
+import androidx.appcompat.widget.Toolbar
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SimpleItemAnimator
+import com.example.exmpl.Model.ChapterLists
 
 class MainActivity : AppCompatActivity() {
-
-    private lateinit var vid:VideoView
-    private lateinit var runnable: Runnable
-    private lateinit var handler: Handler
-    private lateinit var seekbar: SeekBar
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-    // Video Player
-        vid = findViewById(R.id.vid)
-        vid.setVideoPath("android.resource://" + packageName + "/" + R.raw.vid1)
-        vid.start()
+        val toolbar = findViewById<Toolbar>(R.id.toolbar)
+        setSupportActionBar(toolbar)
 
-        seekbar = findViewById(R.id.vidSeekBar)
-        handler = Handler(Looper.getMainLooper())
-        seekbar.progress = 0
+        val userManager = UserManager(this)
+        val mUser = userManager.getUserData()
+        val userClass = mUser?.userClass
+        val userName = mUser?.name
 
-        vid.setOnPreparedListener{
-            seekbar.max = vid.duration
-            vid.start()
-            seekbar.progress = vid.currentPosition
-            changeSeekbar(vid)
-        }
+        val greet = findViewById<TextView>(R.id.greet)
+        val showClass = findViewById<TextView>(R.id.showClass)
 
-        seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(p0: SeekBar?, pos: Int, changed: Boolean) {
-                if(changed){
-                    vid.seekTo(pos)
-                }
+        greet.text = "Hi, $userName"
+        showClass.text = "Class: $userClass"
+
+        val chapterList = ChapterLists.getChaptersForClass(userClass)
+
+        val chAdapter = ChapterAdapter(chapterList)
+        val chRecyclerView = findViewById<RecyclerView>(R.id.chapterRecyclerView)
+        (chRecyclerView.itemAnimator as? SimpleItemAnimator)?.supportsChangeAnimations = false
+        chRecyclerView.layoutManager = LinearLayoutManager(this)
+        chRecyclerView.adapter = chAdapter
+        chRecyclerView.setHasFixedSize(true)
+
+        val searchView = findViewById<SearchView>(R.id.searchView)
+        searchView.setOnQueryTextListener(object : SearchView.OnQueryTextListener {
+            override fun onQueryTextSubmit(query: String?): Boolean {
+                return false
             }
-            override fun onStartTrackingTouch(p0: SeekBar?) {}
-            override fun onStopTrackingTouch(p0: SeekBar?) {}
+
+            override fun onQueryTextChange(newText: String?): Boolean {
+                chAdapter.filter(newText.orEmpty())
+                return true
+            }
         })
-
-        val playPause = findViewById<ImageButton>(R.id.playPause)
-        playPause.setOnClickListener{
-            if(vid.isPlaying){
-                vid.pause()
-                playPause.setImageResource(R.drawable.baseline_play_arrow_24)
-            } else{
-                vid.start()
-                playPause.setImageResource(R.drawable.baseline_pause_24)
-                changeSeekbar(vid)
-            }
-        }
-
-        vid.setOnCompletionListener {
-            playPause.setImageResource(R.drawable.baseline_play_arrow_24)
-        }
-
-
-    // PDF File Open
-        val showHandout = findViewById<Button>(R.id.showHandout)
-        showHandout.setOnClickListener {
-            val intent = Intent(this, PdfViewerActivity::class.java)
-            startActivity(intent)
-        }
-
-    }
-
-    private fun changeSeekbar(videoView: VideoView) {
-        seekbar.progress = videoView.currentPosition
-        if (videoView.isPlaying) {
-            runnable = Runnable {
-                changeSeekbar(videoView)
-            }
-            handler.postDelayed(runnable, 100)
-        }
     }
 }
